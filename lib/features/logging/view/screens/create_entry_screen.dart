@@ -600,6 +600,7 @@ class _CreateEntryScreenState extends ConsumerState<CreateEntryScreen> {
                                 size: 18,
                               ),
                               color: AppTheme.primaryColor,
+                              tooltip: 'More information',
                               onPressed: () {
                                 showDialog(
                                   context: context,

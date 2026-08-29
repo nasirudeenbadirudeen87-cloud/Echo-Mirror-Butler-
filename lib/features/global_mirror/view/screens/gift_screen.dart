@@ -159,6 +159,7 @@ class _GiftScreenState extends ConsumerState<GiftScreen> {
         elevation: 0,
         leading: IconButton(
           icon: Icon(Icons.arrow_back),
+          tooltip: 'Back',
           onPressed: () => context.pop(),
         ),
       ),

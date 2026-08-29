@@ -67,6 +67,7 @@ class _LoggingScreenState extends ConsumerState<LoggingScreen> {
           const Center(child: PendingSyncBadge()),
           IconButton(
             icon: Icon(FontAwesomeIcons.calendar.data),
+            tooltip: 'Open calendar',
             onPressed: () {
               final entries = loggingState.value ?? <LogEntryModel>[];
               _showCalendar(context, entries);

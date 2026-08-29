@@ -95,6 +95,7 @@ class MoodCommentNotificationsScreen extends ConsumerWidget {
           if (notifications.isNotEmpty)
             IconButton(
               icon: Icon(FontAwesomeIcons.trash.data),
+              tooltip: 'Notifications',
               onPressed: () {
                 showDialog(
                   context: context,

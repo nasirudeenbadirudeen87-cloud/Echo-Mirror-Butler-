@@ -154,6 +154,7 @@ class GiftReceiptDialog extends StatelessWidget {
                               const SizedBox(width: 8),
                               IconButton(
                                 icon: const Icon(Icons.copy, size: 18),
+                                tooltip: 'Activate control',
                                 onPressed: () => _copyTxHash(context),
                               ),
                             ],

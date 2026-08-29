@@ -145,6 +145,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                             ? FontAwesomeIcons.eye.data
                             : FontAwesomeIcons.eyeSlash.data,
                       ),
+                      tooltip: 'Show or hide password',
                       onPressed: () {
                         setState(() {
                           _obscurePassword = !_obscurePassword;

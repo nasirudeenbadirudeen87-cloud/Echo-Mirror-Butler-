@@ -130,6 +130,7 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
       appBar: AppBar(
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
+          tooltip: 'Back',
           onPressed: () => context.go('/login'),
         ),
         title: const Text('Reset Password'),
@@ -248,6 +249,7 @@ class _ResetFormView extends StatelessWidget {
                     ? FontAwesomeIcons.eye.data
                     : FontAwesomeIcons.eyeSlash.data,
               ),
+              tooltip: 'Show or hide password',
               onPressed: onTogglePassword,
             ),
             validator: (value) {
@@ -276,6 +278,7 @@ class _ResetFormView extends StatelessWidget {
                     ? FontAwesomeIcons.eye.data
                     : FontAwesomeIcons.eyeSlash.data,
               ),
+              tooltip: 'Show or hide password',
               onPressed: onToggleConfirm,
             ),
             validator: (value) {
