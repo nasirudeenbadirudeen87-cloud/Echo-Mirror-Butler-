@@ -2,17 +2,27 @@ import 'package:flutter/foundation.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../../../core/services/session_tracking_service.dart';
+import '../../../../core/services/offline_storage_service.dart';
+import '../../../../core/services/on_device_vector_index.dart';
+import '../../../../core/sync/local_first_storage_service.dart';
 
 /// Repository for authentication operations backed by Supabase
 class AuthRepository {
   final SupabaseClient? _injectedClient;
   final GoogleSignIn? _injectedGoogleSignIn;
+  final OfflineStorageService _offlineStorage;
+  final LocalFirstStorageService _localFirstStorage;
 
   AuthRepository({
     SupabaseClient? supabaseClient,
     GoogleSignIn? googleSignIn,
+    OfflineStorageService? offlineStorage,
+    LocalFirstStorageService? localFirstStorage,
   }) : _injectedClient = supabaseClient,
-       _injectedGoogleSignIn = googleSignIn {
+       _injectedGoogleSignIn = googleSignIn,
+       _offlineStorage = offlineStorage ?? OfflineStorageService(),
+       _localFirstStorage = localFirstStorage ?? LocalFirstStorageService() {
     debugPrint('[AuthRepository] Initialized');
   }
 
@@ -38,6 +48,9 @@ class AuthRepository {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('user_email', email);
       await prefs.setString('user_id', user.id);
+
+      // Track this session for security management
+      await SessionTrackingService.trackCurrentSession();
 
       debugPrint('[AuthRepository] signIn success -> ${user.id}');
       return user.id;
@@ -89,7 +102,19 @@ class AuthRepository {
   Future<void> signOut() async {
     try {
       debugPrint('[AuthRepository] signOut');
+      
+      // Clear session tracking before signing out
+      await SessionTrackingService.clearCurrentSession();
+      
       await _client.auth.signOut();
+
+      if (_offlineStorage.isInitialized) {
+        await _offlineStorage.clearAll();
+      }
+      if (_localFirstStorage.isInitialized) {
+        await _localFirstStorage.clearAll();
+      }
+      OnDeviceVectorIndex.clearAll();
 
       final prefs = await SharedPreferences.getInstance();
       await prefs.remove('user_email');
@@ -239,6 +264,9 @@ class AuthRepository {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('user_email', user.email ?? '');
       await prefs.setString('user_id', user.id);
+
+      // Track this session for security management
+      await SessionTrackingService.trackCurrentSession();
 
       debugPrint('[AuthRepository] signInWithGoogle success -> ${user.id}');
       return user.id;

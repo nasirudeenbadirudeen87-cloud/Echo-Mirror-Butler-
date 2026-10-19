@@ -115,6 +115,7 @@ Before opening a PR, confirm all of the following:
 - [ ] `dart format . --set-exit-if-changed` passes (no formatting diffs)
 - [ ] No scratch files, debug prints, or commented-out code committed
 - [ ] New features include tests where applicable
+- [ ] `pubspec.lock` is committed if dependencies changed (never ignored)
 
 ---
 
@@ -144,6 +145,7 @@ test(#61): add unit tests for mood log repository
 - **Lint**: No global lint suppressions (`// ignore_for_file`) without prior discussion
 - **Naming**: Follow Dart naming conventions (`lowerCamelCase` for variables, `UpperCamelCase` for classes)
 - **Imports**: Use relative imports within features, package imports across features
+- **Dependencies**: The `pubspec.lock` file must be committed to version control. Do not ignore it. Only update dependencies intentionally (do not blindly run `flutter pub upgrade` without testing).
 
 ---
 
@@ -156,3 +158,27 @@ Quick start:
 supabase start   # starts local Postgres, Auth, Storage, Studio
 supabase db reset  # apply all migrations
 ```
+
+---
+
+## 8. Continuous Integration & Platform Builds
+
+All pull requests targeting `development` run automated CI checks defined in `.github/workflows/ci.yml`:
+- **Code Quality**: Dart formatting, `flutter analyze`, and unit/widget tests with minimum coverage gating.
+- **Supabase Stack**: pgTAP database tests and Deno edge function unit test suite (`deno test --allow-all supabase/functions/test_runner.ts`).
+- **Platform Compilation**:
+  - `build-android`: Compiles `flutter build apk --debug` with Gradle caching and uploads the debug APK as a workflow artifact.
+  - `build-web`: Compiles `flutter build web` to ensure web builds and plugin imports do not break.
+  - iOS compilation (`flutter build ios --no-codesign`) is reserved for scheduled/release workflows to optimize PR turnaround time.
+- **Automated Dependency Updates**:
+  - Managed by Dependabot via `.github/dependabot.yml` covering `pub` (Flutter root), `github-actions`, and `npm` (`frontend/`, `server/`) on weekly grouped schedules.
+
+---
+
+## 9. Release Process
+
+To cut a new release:
+1. **Bump Version:** Update the `version` field in `pubspec.yaml`.
+2. **Update Changelog:** Ensure the top entry in `CHANGELOG.md` matches the new version in `pubspec.yaml`.
+3. **Commit and Tag:** Commit these changes and create a git tag for the new version (e.g., `v1.2.0`).
+4. **GitHub Release:** Push the tag and create a new GitHub Release using the matching changelog section as the release notes.

@@ -63,5 +63,11 @@ build/
 .flutter-plugins
 .flutter-plugins-dependencies
 *.iml
-*.lock
+# *.lock (pubspec.lock must be committed!)
 node_modules/
+
+# Redis dump and scratch/scratch files
+dump.rdb
+*.rdb
+pr_msg_*.txt
+*_config.txt

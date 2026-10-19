@@ -12,6 +12,11 @@ import '../../../auth/viewmodel/providers/auth_provider.dart';
 import '../../../global_mirror/viewmodel/providers/gift_provider.dart';
 import '../../../socials/viewmodel/providers/follow_provider.dart';
 import '../../../../core/viewmodel/providers/haptics_provider.dart';
+import 'package:package_info_plus/package_info_plus.dart';
+
+final packageInfoProvider = FutureProvider<PackageInfo>((ref) async {
+  return await PackageInfo.fromPlatform();
+});
 
 /// Modern settings screen with improved UI/UX
 class SettingsScreen extends ConsumerWidget {
@@ -25,6 +30,7 @@ class SettingsScreen extends ConsumerWidget {
     final isDark = theme.brightness == Brightness.dark;
     final echoBalance = ref.watch(giftProvider).echoBalance;
     final hapticsEnabled = ref.watch(hapticsEnabledProvider);
+    final packageInfoAsync = ref.watch(packageInfoProvider);
 
     return Scaffold(
       appBar: AppBar(
@@ -80,6 +86,34 @@ class SettingsScreen extends ConsumerWidget {
           ),
           const SizedBox(height: 12),
           _buildAccountCard(context, theme, authState, ref, echoBalance),
+          const SizedBox(height: 24),
+
+          // About Section
+          _buildSectionHeader(
+            context,
+            theme,
+            icon: FontAwesomeIcons.circleInfo.data,
+            title: 'About',
+            subtitle: 'App information',
+          ),
+          const SizedBox(height: 12),
+          _buildAboutCard(context, theme, packageInfoAsync),
+          const SizedBox(height: 24),
+
+          // Danger Zone Section (Issue #759: in-app account deletion).
+          // Only shown to signed-in users.
+          if (authState.user != null) ...[
+            _buildSectionHeader(
+              context,
+              theme,
+              icon: FontAwesomeIcons.triangleExclamation.data,
+              title: 'Danger Zone',
+              subtitle: 'Irreversible account actions',
+            ),
+            const SizedBox(height: 12),
+            _buildDangerZoneCard(context, theme),
+            const SizedBox(height: 24),
+          ],
         ],
       ),
     );
@@ -511,6 +545,84 @@ class SettingsScreen extends ConsumerWidget {
               onTap: () async {
                 await ref.read(authProvider.notifier).signOut();
               },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDangerZoneCard(BuildContext context, ThemeData theme) {
+    return Card(
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(20),
+        side: BorderSide(
+          color: theme.colorScheme.error.withValues(alpha: 0.35),
+          width: 1,
+        ),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(4),
+        child: _buildModernListTile(
+          context,
+          theme,
+          icon: FontAwesomeIcons.trash.data,
+          iconColor: theme.colorScheme.error,
+          title: 'Delete my account',
+          subtitle:
+              'Permanently delete your account and data after a 14-day '
+              'grace period',
+          trailing: Icon(
+            FontAwesomeIcons.chevronRight.data,
+            size: 14,
+            color: theme.colorScheme.onSurface.withValues(alpha: 0.4),
+          ),
+          onTap: () => context.push('/settings/delete-account'),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAboutCard(
+    BuildContext context,
+    ThemeData theme,
+    AsyncValue<PackageInfo> packageInfoAsync,
+  ) {
+    return Card(
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(20),
+        side: BorderSide(
+          color: theme.colorScheme.outline.withValues(alpha: 0.1),
+          width: 1,
+        ),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(4),
+        child: Column(
+          children: [
+            packageInfoAsync.when(
+              data: (info) => _buildModernListTile(
+                context,
+                theme,
+                icon: FontAwesomeIcons.tag.data,
+                iconColor: Colors.blueGrey,
+                title: 'Version',
+                subtitle: '${info.version}+${info.buildNumber}',
+              ),
+              loading: () => Padding(
+                padding: const EdgeInsets.all(20),
+                child: Center(child: ShimmerLoading(width: 24, height: 24)),
+              ),
+              error: (_, __) => _buildModernListTile(
+                context,
+                theme,
+                icon: FontAwesomeIcons.tag.data,
+                iconColor: Colors.blueGrey,
+                title: 'Version',
+                subtitle: 'Unknown',
+              ),
             ),
           ],
         ),

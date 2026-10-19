@@ -1,11 +1,14 @@
 import 'dart:io';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../../core/themes/app_theme.dart';
+import '../../../../core/utils/avatar_upload.dart';
 import '../../../../core/utils/error_handler.dart';
+import '../../../../core/utils/error_message_mapper.dart';
 import '../../../../core/widgets/shimmer_loading.dart';
 
 class ProfileScreen extends ConsumerStatefulWidget {
@@ -105,6 +108,41 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     return streak;
   }
 
+  /// Maps a picked file's extension to a MIME type the `avatars` bucket
+  /// actually allows (`image/png`, `image/jpeg`). Returns null for anything
+  /// else (e.g. HEIC) so the caller can surface a specific error instead of
+  /// letting Supabase storage reject the upload with a generic failure.
+  static String? _normalizeContentType(String path) {
+    final ext = path.split('.').last.toLowerCase();
+    switch (ext) {
+      case 'jpg':
+      case 'jpeg':
+        return 'image/jpeg';
+      case 'png':
+        return 'image/png';
+      default:
+        return null;
+    }
+  }
+
+  /// Builds a specific, honest error message from a storage/upload failure.
+  static String _describeUploadError(Object error) {
+    if (error is StorageException) {
+      final msg = error.message.toLowerCase();
+      if (msg.contains('mime') || msg.contains('content-type')) {
+        return 'Unsupported image format. Please use a JPG or PNG.';
+      }
+      if (msg.contains('unauthorized') || msg.contains('jwt') || msg.contains('auth')) {
+        return 'You are not authorized to upload an avatar. Please sign in again.';
+      }
+      if (msg.contains('network') || msg.contains('socket') || msg.contains('timeout')) {
+        return 'Network error while uploading avatar. Please try again.';
+      }
+      return 'Avatar upload failed: ${error.message}';
+    }
+    return 'Avatar upload failed: $error';
+  }
+
   Future<void> _saveProfile() async {
     final user = _client.auth.currentUser;
     if (user == null) return;
@@ -130,28 +168,51 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
   Future<void> _pickAndUploadAvatar() async {
     final picker = ImagePicker();
-    final picked = await picker.pickImage(source: ImageSource.gallery, maxWidth: 512, maxHeight: 512);
+    final picked = await picker.pickImage(
+      source: ImageSource.gallery, 
+      maxWidth: 512, 
+      maxHeight: 512,
+      imageQuality: 70, // compress to improve user experience
+    );
     if (picked == null) return;
 
     final user = _client.auth.currentUser;
     if (user == null) return;
 
+    final bytes = await File(picked.path).readAsBytes();
+    if (bytes.length > 400 * 1024) {
+      if (mounted) ErrorHandler.showError(context, 'Image is too large (max 400KB). Please select a smaller file.');
+      return;
+    }
+
     setState(() => _uploadingAvatar = true);
     try {
-      final bytes = await File(picked.path).readAsBytes();
-      final ext = picked.path.split('.').last.toLowerCase();
+final String contentType;
+      try {
+        contentType = normalizeAvatarContentType(picked.path);
+      } on UnsupportedAvatarFormatException catch (e) {
+        if (mounted) ErrorHandler.showError(context, e.message);
+        return;
+      }
+
+      final Uint8List bytes = await File(picked.path).readAsBytes();
+      final ext = avatarExtensionForContentType(contentType);
       final path = '${user.id}/avatar.$ext';
 
       await _client.storage
           .from('avatars')
-          .uploadBinary(path, bytes, fileOptions: FileOptions(upsert: true, contentType: 'image/$ext'));
+          .uploadBinary(
+            path,
+            bytes,
+            fileOptions: FileOptions(upsert: true, contentType: contentType),
+          );
 
       final url = _client.storage.from('avatars').getPublicUrl(path);
       await _client.from('profiles').upsert({'id': user.id, 'avatar_url': url});
       setState(() => _avatarUrl = '$url?t=${DateTime.now().millisecondsSinceEpoch}');
       if (mounted) ErrorHandler.showSuccess(context, 'Avatar updated');
     } catch (e) {
-      if (mounted) ErrorHandler.showError(context, 'Avatar upload failed');
+if (mounted) ErrorHandler.showError(context, _describeUploadError(e));
     } finally {
       if (mounted) setState(() => _uploadingAvatar = false);
     }
